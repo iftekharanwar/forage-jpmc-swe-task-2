@@ -8,6 +8,7 @@ import './App.css';
  */
 interface IState {
   data: ServerRespond[],
+  intervalId: NodeJS.Timeout | null,
 }
 
 /**
@@ -22,6 +23,7 @@ class App extends Component<{}, IState> {
       // data saves the server responds.
       // We use this state to parse data down to the child element (Graph) as element property
       data: [],
+      intervalId: null,
     };
   }
 
@@ -36,11 +38,37 @@ class App extends Component<{}, IState> {
    * Get new data from server and update the state with the new data
    */
   getDataFromServer() {
-    DataStreamer.getData((serverResponds: ServerRespond[]) => {
-      // Update the state by creating a new array of data that consists of
-      // Previous data in the state and the new data from server
-      this.setState({ data: [...this.state.data, ...serverResponds] });
-    });
+    let moreDataAvailable = true;
+    const intervalId = setInterval(() => {
+      if (moreDataAvailable) {
+        DataStreamer.getData((serverResponds: ServerRespond[]) => {
+          if (serverResponds.length === 0) {
+            moreDataAvailable = false;
+            this.stopStreaming();
+          } else {
+            this.setState({
+              data: [...this.state.data, ...serverResponds]
+            });
+          }
+        });
+      }
+    }, 100);
+
+    this.setState({ intervalId });
+  }
+
+  /**
+   * Stop streaming data
+   */
+  stopStreaming() {
+    if (this.state.intervalId) {
+      clearInterval(this.state.intervalId);
+      this.setState({ intervalId: null });
+    }
+  }
+
+  componentWillUnmount() {
+    this.stopStreaming();
   }
 
   /**
@@ -50,7 +78,7 @@ class App extends Component<{}, IState> {
     return (
       <div className="App">
         <header className="App-header">
-          Bank & Merge Co Task 2
+          Bank &amp; Merge Co Task 2
         </header>
         <div className="App-content">
           <button className="btn btn-primary Stream-button"
